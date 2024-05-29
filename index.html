@@ -1,0 +1,397 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>拓扑图-G6实现</title>
+
+    <script src="https://gw.alipayobjects.com/os/lib/antv/g6/4.3.11/dist/g6.min.js"></script>
+    <style>
+      @import "./iconfont/iconfont.css";
+      * {
+        margin: 0;
+        padding: 0;
+      }
+      body {
+        background: #13233b;
+      }
+
+      .g6-component-tooltip {
+        background: #545454;
+        box-shadow: none;
+        border: none;
+      }
+      .nodeDetails {
+        color: #fff;
+      }
+      .nodeDetails li {
+        list-style-type: none;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="container"></div>
+
+    <script>
+      const data = {
+        id: "root",
+        label: "运维交换机1",
+        img: "./images/运维交换机.png",
+        ip: "192.168.1.1",
+        isExpand: true,
+        hasChild: true,
+        children: [
+          {
+            id: "c1",
+            label: "运维交互机2",
+            ip: "192.168.1.1",
+            img: "./images/运维交换机.png",
+            edgeLabel1: "gi1",
+            isExpand: false,
+            hasChild: true,
+          },
+          {
+            id: "c2",
+            label: "运维交互机3",
+            ip: "192.168.1.1",
+            img: "./images/运维交换机.png",
+            edgeLabel1: "gi2",
+            isExpand: false,
+          },
+        ],
+      };
+
+      G6.registerNode(
+        "icon-node",
+        {
+          options: {},
+          draw(cfg, group) {
+            const styles = this.getShapeStyle(cfg);
+
+            const {
+              labelCfg = {},
+              ipLabelCfg = {},
+              size,
+              isExpand,
+              hasChild,
+            } = cfg;
+
+            const w = styles.width;
+            const h = styles.height;
+
+            const imageShape = group.addShape("image", {
+              attrs: {
+                ...styles,
+                x: -w / 2,
+                y: -h / 2,
+                img: cfg.img,
+                // width: w,
+                // height: h,
+              },
+              name: "image-shape",
+            });
+
+            if (cfg.label) {
+              group.addShape("text", {
+                attrs: {
+                  ...labelCfg.style,
+                  text: cfg.label,
+                  x: -w / 2,
+                  y: h - 10,
+                },
+                name: "label",
+              });
+            }
+
+            if (cfg.ip) {
+              group.addShape("rect", {
+                attrs: {
+                  x: -w,
+                  y: h - 5,
+                  width: 100,
+                  height: 15,
+                  fill: "#405f81",
+                  radius: [2, 2],
+                },
+                name: "ip-rect",
+              });
+
+              group.addShape("text", {
+                attrs: {
+                  text: cfg.ip,
+                  x: -w / 2,
+                  y: h + 8,
+                  ...ipLabelCfg.style,
+                },
+                name: "ip-label",
+              });
+            }
+
+            group.addShape("text", {
+              attrs: {
+                x: w / 2 - 5,
+                y: h / 2 - 5,
+                fontFamily: "iconfont", // 对应css里面的font-family: "iconfont";
+                textAlign: "center",
+                textBaseline: "middle",
+                text:
+                  hasChild && isExpand
+                    ? "\ue731"
+                    : hasChild && isExpand === false
+                    ? "\ue732"
+                    : "",
+                fontSize: 15,
+                fill: "#3f5f81",
+                stroke: "#ffffff",
+                cursor: "pointer",
+              },
+              name: "collapse-icon",
+            });
+
+            // group.addShape("text", {
+            //   attrs: {
+            //     x: w / 2 - 5,
+            //     y: h / 2 - 5,
+            //     fontFamily: "iconfont", // 对应css里面的font-family: "iconfont";
+            //     textAlign: "center",
+            //     textBaseline: "middle",
+            //     text: "\ue732",
+            //     fontSize: 15,
+            //     fill: "#3f5f81",
+            //     stroke: "#ffffff",
+            //     cursor: "pointer",
+            //   },
+            //   visible: isExpand === false && hasChild === true,
+            //   name: "expand",
+            // });
+
+            return imageShape;
+          },
+          update(cfg, node) {
+            console.log(cfg);
+          },
+          setState(name, value, item) {
+            // console.log(name, value, item);
+            const group = item.getContainer();
+            if (name === "isExpand") {
+              const marker = item
+                .get("group")
+                .find((ele) => ele.get("name") === "collapse-icon");
+
+              let icon;
+              if (value === true) {
+                icon = "\ue731";
+              } else {
+                icon = "\ue732";
+              }
+              marker.attr("text", icon);
+            }
+          },
+        },
+        "rect"
+      );
+
+      G6.registerEdge("flow-line", {
+        draw(cfg, group) {
+          const startPoint = cfg.startPoint;
+          const endPoint = cfg.endPoint;
+
+          const { style, target } = cfg;
+          const { labelCfg } = style;
+          const shape = group.addShape("path", {
+            attrs: {
+              stroke: style.stroke,
+              endArrow: style.endArrow,
+              path: [
+                ["M", startPoint.x, startPoint.y + 62],
+                ["L", startPoint.x, (startPoint.y + endPoint.y) / 2],
+                ["L", endPoint.x, (startPoint.y + endPoint.y) / 2],
+                ["L", endPoint.x, endPoint.y - 27],
+              ],
+            },
+            name: "path-shape",
+          });
+
+          const targetNode = graph.findById(target);
+          const {
+            _cfg: { model },
+          } = targetNode;
+
+          const { edgeLabel1 } = model;
+
+          if (edgeLabel1) {
+            group.addShape("text", {
+              attrs: {
+                text: edgeLabel1,
+                x: endPoint.x + 5,
+                y: endPoint.y - 50,
+                ...labelCfg.style,
+              },
+              name: "edge-label",
+            });
+          }
+
+          return shape;
+        },
+      });
+
+      const container = document.getElementById("container");
+      const width = container.scrollWidth;
+      const height = container.scrollHeight || 500;
+
+      const defaultLayout = {
+        type: "compactBox",
+        direction: "TB",
+        getSide: function getSide(d) {
+          console.log(d);
+        },
+        getId: function getId(d) {
+          return d.id;
+        },
+        getHeight: function getHeight() {
+          return 16;
+        },
+        getWidth: function getWidth() {
+          return 16;
+        },
+        getVGap: function getVGap() {
+          return 100;
+        },
+        getHGap: function getHGap() {
+          return 200;
+        },
+      };
+
+      const defaultEdgeStyle = {
+        stroke: "#4a7ab4",
+        labelCfg: {
+          style: {
+            fontSize: 10,
+            fill: "#fff",
+          },
+        },
+        endArrow: {
+          path: G6.Arrow.circle(3, -0),
+          fill: "#4a7ab4",
+          d: 0,
+        },
+      };
+
+      const tooltip = new G6.Tooltip({
+        offsetX: 70,
+        offsetY: 20,
+        getContent(e) {
+          const outDiv = document.createElement("div");
+          outDiv.style.width = "180px";
+          outDiv.innerHTML = `
+      <ul class="nodeDetails">
+        <li>名称: ${e.item.getModel().label}</li>
+        <li>IP: ${e.item.getModel().ip}</li>
+        <li>ID: ${e.item.getModel().id}</li>
+      </ul>`;
+          return outDiv;
+        },
+        itemTypes: ["node"],
+      });
+
+      const graph = new G6.TreeGraph({
+        container: "container",
+        width,
+        height,
+        linkCenter: true,
+        plugins: [tooltip],
+        modes: {
+          default: ["drag-canvas", "zoom-canvas"],
+        },
+        defaultNode: {
+          type: "icon-node",
+          size: [50, 50],
+          labelCfg: {
+            style: {
+              fill: "#fff",
+              fontSize: 10,
+            },
+          },
+          ipLabelCfg: {
+            style: {
+              fill: "#fff",
+              fontSize: 10,
+            },
+          },
+        },
+        defaultEdge: {
+          type: "flow-line",
+          style: defaultEdgeStyle,
+        },
+        layout: defaultLayout,
+      });
+
+      graph.data(data);
+      graph.render();
+      graph.fitView();
+
+      graph.on("node:mouseenter", (evt) => {
+        const { item } = evt;
+        graph.setItemState(item, "hover", true);
+      });
+
+      graph.on("node:mouseleave", (evt) => {
+        const { item } = evt;
+        graph.setItemState(item, "hover", false);
+      });
+
+      graph.on("node:click", (evt) => {
+        const { item, target } = evt;
+        const targetType = target.get("type");
+        const name = target.get("name");
+
+        // 增加元素
+        if (targetType === "text") {
+          const model = item.getModel();
+          if (name === "collapse-icon" && model.isExpand === false) {
+            const id = `n-${Math.random()}`;
+
+            if (!model.children) {
+              model.children = [];
+            }
+            model.children.push({
+              id,
+              label: "运维交互机2-1",
+              ip: "192.168.1.1",
+              img: "./images/运维交换机.png",
+              edgeLabel1: "gi1",
+              isExpand: false,
+              hasChild: false,
+            });
+            model.children.push({
+              id: id + "1",
+              label: "运维交互机2-1-1",
+              ip: "192.168.1.1",
+              img: "./images/运维交换机.png",
+              edgeLabel1: "gi1",
+              isExpand: false,
+              hasChild: false,
+            });
+            model.isExpand = true;
+            graph.updateChild(model, model.id);
+            graph.setItemState(item, "isExpand", true);
+          } else {
+            model.children = [];
+            model.isExpand = false;
+            graph.updateChild(model, model.id);
+            graph.setItemState(item, "isExpand", false);
+          }
+        }
+      });
+
+      if (typeof window !== "undefined") {
+        window.onresize = () => {
+          if (!graph || graph.get("destroyed")) return;
+          if (!container || !container.scrollWidth || !container.scrollHeight)
+            return;
+          graph.changeSize(container.scrollWidth, container.scrollHeight);
+        };
+      }
+    </script>
+  </body>
+</html>
